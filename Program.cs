@@ -11,6 +11,7 @@ namespace PI_AF_SDK_Async_Demo
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
+        //Comment here
         static void Main()
         {
             Application.EnableVisualStyles();
