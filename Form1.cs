@@ -32,28 +32,45 @@ namespace PI_AF_SDK_Async_Demo
         private async void btnReadAsync_Click(object sender, EventArgs e)
         {
             // get the list of attributes 
-            lstResults.Items.Add(string.Format("{0} - Searching and loading elements",DateTime.Now));
+            lstResults.Items.Add(string.Format("{0} - Searching and loading elements", DateTime.Now));
 
             var db = afDatabasePicker1.AFDatabase;
-            var elements=AFElement.FindElementsByTemplate(db, null, db.ElementTemplates[cmbTemplates.Text],true,AFSortField.ID, AFSortOrder.Ascending, 100000);
+            var elements = AFElement.FindElementsByTemplate(db, null, db.ElementTemplates[cmbTemplates.Text], true, AFSortField.ID, AFSortOrder.Ascending, 100000);
             AFElement.LoadElementsToDepth(elements, true, 1, 1000000);
             lstResults.Items.Add(string.Format("{0} - Elements loaded", DateTime.Now));
 
-
-            lstResults.Items.Add(string.Format("{0} - Starting Gathering the data", DateTime.Now));
-            foreach (var element in elements)
+            try
             {
-                var attributesList = new AFAttributeList(element.Attributes);
-                lstResults.Items.Add(string.Format("{0} - Starting Gathering the data async for {1}", DateTime.Now, element.GetPath()));
-                IList<AFValue> data= await attributesList.Data.EndOfStreamAsync();
-                lstResults.Items.Add(string.Format("{0} - Got {1} values from {2}", DateTime.Now, data.Count, element.GetPath()));
+                lstResults.Items.Add(string.Format("{0} - Starting Gathering the data", DateTime.Now));
+                List<Task<IList<AFValue>>> dataForAttributes = new List<Task<IList<AFValue>>>();
+                foreach (var element in elements)
+                {
+                    lstResults.Items.Add(string.Format("{0:O} - adding attributes {1}", DateTime.Now, element.GetPath()));
+                    var attributesList = new AFAttributeList(element.Attributes);
+                    lstResults.Items.Add(string.Format("{0:O} - Starting Gathering the data async for {1}", DateTime.Now, element.GetPath()));
+                    dataForAttributes.Add(attributesList.Data.EndOfStreamAsync());
+                    lstResults.Items.Add(string.Format("{0:O} - Async call completed {1}", DateTime.Now, element.GetPath()));
+                    // IList<AFValue> data = await attributesList.Data.EndOfStreamAsync();
 
+
+                }
+                lstResults.Items.Add(string.Format("{0} - Waiting for data retrieval to complete", DateTime.Now));
+
+                var result= await Task.WhenAll(dataForAttributes);
+                List<AFValue> fulllist = new List<AFValue>();
+                foreach (var dataset in result)
+                {
+                        fulllist.AddRange(dataset);
+                }
+
+                lstResults.Items.Add(string.Format("{0} - Got {1} values", DateTime.Now, fulllist.Count));
             }
-
-            
-
-
+            catch (Exception ex)
+            {
+                lstResults.Items.Add(ex);
+            }
         }
+
 
         private void ResetProgressBar()
         {
